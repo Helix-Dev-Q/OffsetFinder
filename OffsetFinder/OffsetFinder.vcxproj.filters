@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="OffsetFinder">
+      <UniqueIdentifier>{a1111111-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OffsetFinder\Public">
+      <UniqueIdentifier>{a2222222-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OffsetFinder\Private">
+      <UniqueIdentifier>{a3333333-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="includes">
+      <UniqueIdentifier>{a4444444-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="OffsetFinder\Public\Finder.h">
+      <Filter>OffsetFinder\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="OffsetFinder\Public\Generator.h">
+      <Filter>OffsetFinder\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="OffsetFinder\Public\RedirectFinder.h">
+      <Filter>OffsetFinder\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Containers.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Core.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Defs.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Engine.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Includes.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Memcury.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\includes\Offsets.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="OffsetFinder\dllmain.cpp">
+      <Filter>OffsetFinder</Filter>
+    </ClCompile>
+    <ClCompile Include="OffsetFinder\Private\Finder.cpp">
+      <Filter>OffsetFinder\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="OffsetFinder\Private\Generator.cpp">
+      <Filter>OffsetFinder\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="OffsetFinder\Private\RedirectFinder.cpp">
+      <Filter>OffsetFinder\Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
