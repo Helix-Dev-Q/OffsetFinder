@@ -526,7 +526,7 @@ std::string OffsetFinder::GenerateRedirectOffsets(const std::wstring& OutputPath
 
     for (auto& E : Found)
     {
-        if (E.IsVft)
+        if (E.IsVft || E.IsMemberOffset)
             printf("  %-40s 0x%llX\n", E.Name, E.Absolute);
         else if (E.RelativeToEOS)
             printf("  %-40s EOS+0x%llX\n", E.Name, E.Absolute - EOSBase);
@@ -570,7 +570,7 @@ std::string OffsetFinder::GenerateRedirectOffsets(const std::wstring& OutputPath
 
     for (auto& E : Found)
     {
-        if (E.IsVft)
+        if (E.IsVft || E.IsMemberOffset)
         {
             Out << "\t\t\t" << E.Name << " = 0x" << std::uppercase << std::hex << E.Absolute << std::dec << ";\n";
         }
