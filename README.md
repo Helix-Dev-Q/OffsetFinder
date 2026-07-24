@@ -8,6 +8,10 @@ Inject the DLL into Fortnite and it'll scan for signatures, then dumps `Gameserv
 
 Missing offsets just get skipped in the header. You'll still see them logged in the console as misses.
 
+## Wrong Offsets
+
+if the offsets that were generated/found may be wrong sometime like, 28.01 offsets some of them are wrong
+
 ## Credits
 
 Credits to Erbium, Starfall, Tellurium for using their signature patterns for this OffsetFinder
