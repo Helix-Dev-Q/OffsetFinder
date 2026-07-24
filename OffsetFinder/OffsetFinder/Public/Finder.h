@@ -4,11 +4,29 @@
 uint64 FindGIsClient();
 uint64 FindGIsServer();
 uint64 FindGetNetMode();
+uint64 FindAttemptDeriveFromURL();
 uint64 FindGetWorldContext();
 uint64 FindCreateNetDriver();
 uint64 FindCreateNetDriverWorldContext();
 uint64 FindInitListen();
 uint64 FindSetWorld();
+
+inline bool NeedsAttemptDeriveFromURL()
+{
+    const double FN = VersionInfo.FortniteVersion;
+    return FN == 23.00
+        || (FN >= 24.30 && FN != 28.30 && FN != 29.40)
+        || FN >= 30
+        || FN >= 28;
+}
+
+inline bool NeedsGetNetModeAlongsideAttemptDerive()
+{
+    const double FN = VersionInfo.FortniteVersion;
+    if (FN == 23.00 || (FN >= 24.30 && FN != 28.30 && FN != 29.40) || FN >= 30)
+        return false;
+    return FN >= 28;
+}
 uint64 FindTickFlush();
 uint64 FindServerReplicateActors();
 uint64 FindSendRequestNow();
@@ -81,8 +99,15 @@ uint64 FindReadyToStartMatch();
 uint64 FindSetIsDoorOpen();
 uint64 FindActivatePhase();
 uint64 FindSelectAndSetupMyBuildingLevel();
+uint64 FindStreamInMyBuilding();
+uint64 FindCheckCheckpointHeartBeat();
+uint64 FindApplyHomebaseEffectsOnPlayerSetup();
+uint64 FindRetFalse();
+uint64 FindPedestalBeginPlay();
+uint64 FindNetModePatch();
+uint64 FindCrashSomething();
+uint64 FindOverrideCosmeticLoadout();
 
-// same as erbium - grab the native from a ufunction on the cdo
 const UFunction* FindUFunction(const char* const* ClassNames, const char* const* FunctionNames);
 uint64 FindUFuncExec(const char* const* ClassNames, const char* const* FunctionNames);
 uint64 FindUFuncImpl(const char* const* ClassNames, const char* const* FunctionNames);

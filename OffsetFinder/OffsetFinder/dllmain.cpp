@@ -9,7 +9,7 @@
 
 static OffsetFinder::Mode PromptMode()
 {
-    printf("OffsetFinder - What offsets would you like to find, Gameserver or Redirect?\n");
+    printf("OffsetFinder - What offsets would you like to find?\n");
     printf("  [1] Gameserver  (Erbium signatures)\n");
     printf("  [2] Redirect    (Tellurium + Starfall signatures)\n");
     printf("> ");

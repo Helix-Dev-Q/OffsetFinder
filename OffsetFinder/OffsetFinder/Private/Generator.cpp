@@ -3,6 +3,7 @@
 #include "../Public/Generator.h"
 #include "../Public/Finder.h"
 #include "../Public/RedirectFinder.h"
+#include "../Public/Precision.h"
 
 #include <cmath>
 #include <filesystem>
@@ -21,33 +22,56 @@ namespace
 
     uint64_t FindGWorld()
     {
-        const char* Patterns[] = {
-            "48 8B 1D ? ? ? ? 48 85 DB 74 3B 41 B0 01",
-            "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? 48 8B 49",
-            "48 89 05 ? ? ? ? 48 8B 4B ? E8",
-            "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 06 48 8B 49 70",
-            "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? E8",
-        };
+        auto SRef = Precision::FindStringRefSmart(L"UWorld::CleanupWorld");
+
+        if (SRef)
+        {
+            for (int i = 0; i < 0x400; i++)
+            {
+                auto Ptr = (uint8_t*)(SRef - i);
+                if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && (*(Ptr + 2) == 0x05 || *(Ptr + 2) == 0x0D || *(Ptr + 2) == 0x1D))
+                {
+                    auto Addr = Memcury::Scanner(Ptr).RelativeOffset(3).Get();
+                    if (Precision::IsReadableDataPtr(Addr))
+                        return Addr;
+                }
+                if (*Ptr == 0x48 && *(Ptr + 1) == 0x89 && (*(Ptr + 2) == 0x05 || *(Ptr + 2) == 0x0D || *(Ptr + 2) == 0x1D))
+                {
+                    auto Addr = Memcury::Scanner(Ptr).RelativeOffset(3).Get();
+                    if (Precision::IsReadableDataPtr(Addr))
+                        return Addr;
+                }
+            }
+        }
+
+        const double FN = VersionInfo.FortniteVersion;
+        const double UE = VersionInfo.EngineVersion;
+        std::vector<const char*> Patterns;
+        if (UE >= 5.0 || FN >= 20.00)
+        {
+            Patterns = {
+                "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? 48 8B 49",
+                "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? E8",
+                "48 8B 1D ? ? ? ? 48 85 DB 74 3B 41 B0 01",
+                "48 89 05 ? ? ? ? 48 8B 4B ? E8",
+            };
+        }
+        else
+        {
+            Patterns = {
+                "48 8B 1D ? ? ? ? 48 85 DB 74 3B 41 B0 01",
+                "48 89 05 ? ? ? ? 48 8B 4B ? E8",
+                "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 06 48 8B 49 70",
+            };
+        }
 
         for (auto Pattern : Patterns)
         {
-            auto Scanner = Memcury::Scanner::FindPattern(Pattern);
-            if (!Scanner.Get())
-                continue;
-
-            auto Addr = Scanner.RelativeOffset(3).Get();
-            if (Addr && Addr > ImageBase)
-                return Addr;
-        }
-
-        auto SRef = Memcury::Scanner::FindStringRef(L"UWorld::CleanupWorld", false);
-        if (SRef.Get())
-        {
-            for (int i = 0; i < 0x200; i++)
+            for (auto Hit : Precision::FindAllPatterns(Pattern))
             {
-                auto Ptr = (uint8_t*)(SRef.Get() - i);
-                if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && (*(Ptr + 2) == 0x05 || *(Ptr + 2) == 0x0D || *(Ptr + 2) == 0x1D))
-                    return Memcury::Scanner(Ptr).RelativeOffset(3).Get();
+                auto Addr = Memcury::Scanner(Hit).RelativeOffset(3).Get();
+                if (Precision::IsReadableDataPtr(Addr))
+                    return Addr;
             }
         }
 
@@ -56,19 +80,31 @@ namespace
 
     uint64_t FindGEngine()
     {
-        const char* Patterns[] = {
-            "48 8B 0D ? ? ? ? 48 85 C9 74 ? E8 ? ? ? ? 48 8B 0D",
-            "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? 48 8B 49 70",
-            "48 8B 0D ? ? ? ? 48 8B D8 48 85 C9 0F 84",
-        };
+        const double UE = VersionInfo.EngineVersion;
+        std::vector<const char*> Patterns;
+        if (UE >= 5.0)
+        {
+            Patterns = {
+                "48 8B 0D ? ? ? ? 48 85 C9 74 ? E8 ? ? ? ? 48 8B 0D",
+                "48 8B 0D ? ? ? ? 48 8B D8 48 85 C9 0F 84",
+                "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? 48 8B 49 70",
+            };
+        }
+        else
+        {
+            Patterns = {
+                "48 8B 05 ? ? ? ? 48 8B 88 ? ? ? ? 48 85 C9 74 ? 48 8B 49 70",
+                "48 8B 0D ? ? ? ? 48 85 C9 74 ? E8 ? ? ? ? 48 8B 0D",
+                "48 8B 0D ? ? ? ? 48 8B D8 48 85 C9 0F 84",
+            };
+        }
 
         for (auto Pattern : Patterns)
         {
-            auto Scanner = Memcury::Scanner::FindPattern(Pattern);
-            if (Scanner.Get())
+            for (auto Hit : Precision::FindAllPatterns(Pattern))
             {
-                auto Addr = Scanner.RelativeOffset(3).Get();
-                if (Addr && Addr > ImageBase)
+                auto Addr = Memcury::Scanner(Hit).RelativeOffset(3).Get();
+                if (Precision::IsReadableDataPtr(Addr))
                     return Addr;
             }
         }
@@ -144,13 +180,7 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
         printf("fn %.2f / ue %.2f\n", FnVersion, EngineVersion);
     }
 
-    printf("scanning...\n");
-
-    const uint64_t GWorld = FindGWorld();
-    const uint64_t GEngine = FindGEngine();
-    const uint64_t GUObjectArray = Offsets::GObjectsChunked ? Offsets::GObjectsChunked : Offsets::GObjectsUnchunked;
-    const uint64_t GIsClient = FindGIsClient();
-    const uint64_t GIsServer = FindGIsServer();
+    printf("\n--- gameserver offsets ---\n");
 
     struct NamedAddr
     {
@@ -159,103 +189,195 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
         bool IsVft;
     };
 
-    std::vector<NamedAddr> Entries = {
-        { "GWorld", GWorld, false },
-        { "GEngine", GEngine, false },
-        { "GUObjectArray", GUObjectArray, false },
-        { "GIsClient", GIsClient, false },
-        { "GIsServer", GIsServer, false },
-        { "Realloc", Offsets::Realloc, false },
-        { "AppendString", Offsets::AppendString, false },
-        { "ToString", Offsets::ToString, false },
-        { "Step", Offsets::Step, false },
-        { "StepExplicitProperty", Offsets::StepExplicitProperty, false },
-        { "GetInterfaceAddress", Offsets::GetInterfaceAddress, false },
-        { "StaticFindObject", Offsets::StaticFindObject, false },
-        { "StaticLoadObject", Offsets::StaticLoadObject, false },
-        { "FNameCtor", Offsets::FNameConstructor, false },
-        { "SpawnActorTransform", Offsets::SpawnActor, false },
-        { "ProcessEventVft", Offsets::ProcessEventVft, true },
-        { "WorldNetMode", FindGetNetMode(), false },
-        { "GetWorldContext", FindGetWorldContext(), false },
-        { "CreateNetDriver", FindCreateNetDriver(), false },
-        { "CreateNetDriverWorldContext", FindCreateNetDriverWorldContext(), false },
-        { "InitListen", FindInitListen(), false },
-        { "SetWorld", FindSetWorld(), false },
-        { "TickFlush", FindTickFlush(), false },
-        { "ServerReplicateActors", FindServerReplicateActors(), false },
-        { "DispatchRequest", FindSendRequestNow(), false },
-        { "GetMaxTickRate", FindGetMaxTickRate(), false },
-        { "GiveAbility", FindGiveAbility(), false },
-        { "ConstructAbilitySpec", FindConstructAbilitySpec(), false },
-        { "InternalTryActivateAbility", FindInternalTryActivateAbility(), false },
-        { "GiveAbilityAndActivateOnce", FindGiveAbilityAndActivateOnce(), false },
-        { "ClearAbility", FindClearAbility(), false },
-        { "ApplyCharacterCustomization", FindApplyCharacterCustomization(), false },
-        { "SetupSafeZonePhase", FindHandlePostSafeZonePhaseChanged(), false },
-        { "SpawnLoot", FindSpawnLoot(), false },
-        { "FinishedTargetSpline", FindFinishedTargetSpline(), false },
-        { "PickTeam", FindPickTeam(), false },
-        { "CantBuild", FindCantBuild(), false },
-        { "ReplaceBuildingActor", FindReplaceBuildingActor(), false },
-        { "KickPlayer", FindKickPlayer(), false },
-        { "EncryptionPatch", FindEncryptionPatch(), false },
-        { "GameSessionPatch", FindGameSessionPatch(), false },
-        { "RemoveInventoryItem", FindRemoveInventoryItem(), false },
-        { "RemoveInventoryStateValue", FindRemoveInventoryStateValue(), false },
-        { "SetInventoryStateValue", FindSetInventoryStateValue(), false },
-        { "HandleZiplineStateChanged", FindOnRep_ZiplineState(), false },
-        { "RemoveFromAlivePlayers", FindRemoveFromAlivePlayers(), false },
-        { "StartAircraftPhase", FindStartAircraftPhase(), false },
-        { "SetPickupItems", FindSetPickupItems(), false },
-        { "CallPreReplication", FindCallPreReplication(), false },
-        { "SendClientAdjustment", FindSendClientAdjustment(), false },
-        { "SetChannelActor", FindSetChannelActor(), false },
-        { "SetChannelActorForDestroy", FindSetChannelActorForDestroy(), false },
-        { "CreateChannel", FindCreateChannel(), false },
-        { "ReplicateActor", FindReplicateActor(), false },
-        { "CloseActorChannel", FindCloseActorChannel(), false },
-        { "ClientHasInitializedLevelFor", FindClientHasInitializedLevelFor(), false },
-        { "StartBecomingDormant", FindStartBecomingDormant(), false },
-        { "FlushDormancy", FindFlushDormancy(), false },
-        { "SendDestructionInfo", FindSendDestructionInfo(), false },
-        { "EnterAircraft", FindEnterAircraft(), false },
-        { "GetPlayerViewPoint", FindGetPlayerViewPoint(), false },
-        { "GetNamePool", FindGetNamePool(), false },
-        { "IsNetReady", FindIsNetReady(), false },
-        { "SpawnInitialSafeZone", FindSpawnInitialSafeZone(), false },
-        { "UpdateSafeZonesPhase", FindUpdateSafeZonesPhase(), false },
-        { "UpdateIrisReplicationViews", FindUpdateIrisReplicationViews(), false },
-        { "PreSendUpdate", FindPreSendUpdate(), false },
-        { "HandleMatchHasStarted", FindHandleMatchHasStarted(), false },
-        { "InitializeBuildingActor", FindInitializeBuildingActor(), false },
-        { "PostInitializeSpawnedBuildingActor", FindPostInitializeSpawnedBuildingActor(), false },
-        { "InitializeFlightPath", FindInitializeFlightPath(), false },
-        { "ControllerReset", FindReset(), false },
-        { "NotifyGameMemberAdded", FindNotifyGameMemberAdded(), false },
-        { "SetGamePhase", FindSetGamePhase(), false },
-        { "PayBuildableClassPlacementCost", FindPayBuildableClassPlacementCost(), false },
-        { "CanAffordToPlaceBuildableClass", FindCanAffordToPlaceBuildableClass(), false },
-        { "CanPlaceBuildableClassInStructuralGrid", FindCanPlaceBuildableClassInStructuralGrid(), false },
-        { "LoadPlayset", FindLoadPlayset(), false },
-        { "SetState", FindSetState(), false },
-        { "MinigameSettingsBuildingBeginPlay", FindMinigameSettingsBuilding__BeginPlay(), false },
-        { "PickSupplyDropLocation", FindPickSupplyDropLocation(), false },
-        { "SetPickupTarget", FindSetPickupTarget(), false },
-        { "InitializePlayerGameplayAbilities", FindInitializePlayerGameplayAbilities(), false },
-        { "Listen", FindListenCall(), false },
-        { "QueueStatEvent", FindQueueStatEvent(), false },
-        { "FinishWorldInitialization", FindFinishWorldInitialization(), false },
-        { "SetIsDoorOpen", FindSetIsDoorOpen(), false },
-        { "ActivatePhase", FindActivatePhase(), false },
-        { "SelectAndSetupMyBuildingLevel", FindSelectAndSetupMyBuildingLevel(), false },
-        { "IsNetRelevantForVft", (uint64_t)FindIsNetRelevantForVft(), true },
-        { "OnItemInstanceAddedVft", FindOnItemInstanceAddedVft(), true },
-        { "SpawnDecoVft", FindSpawnDecoVft(), true },
-        { "ShouldAllowServerSpawnDecoVft", FindShouldAllowServerSpawnDecoVft(), true },
+    std::vector<NamedAddr> Entries;
+    Entries.reserve(256);
+
+    auto HasEntry = [&](const char* Name) -> bool
+    {
+        for (auto& E : Entries)
+        {
+            if (E.Name && Name && strcmp(E.Name, Name) == 0)
+                return true;
+        }
+        return false;
     };
 
-    printf("grabbing ufuncs...\n");
+    auto Push = [&](const char* Name, uint64_t Value, bool IsVft = false)
+    {
+        if (!Name || HasEntry(Name))
+            return;
+        Entries.push_back({ Name, Value, IsVft });
+        if (Value)
+            printf("  %-40s 0x%llX\n", Name, IsVft ? Value : Rel(Value));
+        else
+            printf("  %-40s NOT FOUND\n", Name);
+        fflush(stdout);
+    };
+
+    auto PushAlias = [&](const char* Name, uint64_t Value, bool IsVft = false)
+    {
+        if (!Value || !Name || HasEntry(Name))
+            return;
+        Entries.push_back({ Name, Value, IsVft });
+    };
+
+    printf("\n--- globals / sdk ---\n");
+    const uint64_t GWorld = FindGWorld();
+    const uint64_t GEngine = FindGEngine();
+    const uint64_t GUObjectArray = Offsets::GObjectsChunked ? Offsets::GObjectsChunked : Offsets::GObjectsUnchunked;
+    const uint64_t GIsClient = FindGIsClient();
+    const uint64_t GIsServer = FindGIsServer();
+
+    Push("GWorld", GWorld);
+    Push("GEngine", GEngine);
+    Push("GUObjectArray", GUObjectArray);
+    PushAlias("GObjects", GUObjectArray);
+    PushAlias("GObjectsChunked", Offsets::GObjectsChunked);
+    PushAlias("GObjectsUnchunked", Offsets::GObjectsUnchunked);
+    Push("GIsClient", GIsClient);
+    Push("GIsServer", GIsServer);
+    Push("Realloc", Offsets::Realloc);
+    PushAlias("FMemoryRealloc", Offsets::Realloc);
+    Push("AppendString", Offsets::AppendString);
+    PushAlias("FName_AppendString", Offsets::AppendString);
+    Push("ToString", Offsets::ToString);
+    PushAlias("FName_ToString", Offsets::ToString);
+    Push("Step", Offsets::Step);
+    Push("StepExplicitProperty", Offsets::StepExplicitProperty);
+    Push("GetInterfaceAddress", Offsets::GetInterfaceAddress);
+    Push("StaticFindObject", Offsets::StaticFindObject);
+    Push("StaticLoadObject", Offsets::StaticLoadObject);
+    Push("FNameCtor", Offsets::FNameConstructor);
+    PushAlias("FName_Constructor", Offsets::FNameConstructor);
+    Push("SpawnActorTransform", Offsets::SpawnActor);
+    PushAlias("SpawnActor", Offsets::SpawnActor);
+    Push("ProcessEventVft", Offsets::ProcessEventVft, true);
+
+    printf("\n--- net / listen ---\n");
+    const uint64_t AttemptDerive = FindAttemptDeriveFromURL();
+    const uint64_t WorldNetMode = FindGetNetMode();
+    const uint64_t DispatchRequest = FindSendRequestNow();
+
+    if (NeedsAttemptDeriveFromURL())
+    {
+        Push("AttemptDeriveFromURL", AttemptDerive);
+        Push("WorldNetMode", AttemptDerive ? AttemptDerive : WorldNetMode);
+        if (NeedsGetNetModeAlongsideAttemptDerive())
+            PushAlias("GetNetMode", WorldNetMode);
+        else if (WorldNetMode && WorldNetMode != AttemptDerive)
+            PushAlias("GetNetMode", WorldNetMode);
+    }
+    else
+    {
+        Push("WorldNetMode", WorldNetMode);
+        PushAlias("GetNetMode", WorldNetMode);
+        if (AttemptDerive)
+            Push("AttemptDeriveFromURL", AttemptDerive);
+    }
+
+    Push("GetWorldContext", FindGetWorldContext());
+    Push("CreateNetDriver", FindCreateNetDriver());
+    Push("CreateNetDriverWorldContext", FindCreateNetDriverWorldContext());
+    Push("InitListen", FindInitListen());
+    Push("SetWorld", FindSetWorld());
+    Push("TickFlush", FindTickFlush());
+    Push("ServerReplicateActors", FindServerReplicateActors());
+    Push("DispatchRequest", DispatchRequest);
+    PushAlias("SendRequestNow", DispatchRequest);
+    Push("GetMaxTickRate", FindGetMaxTickRate());
+    Push("Listen", FindListenCall());
+    Push("IsNetReady", FindIsNetReady());
+    Push("CallPreReplication", FindCallPreReplication());
+    Push("SendClientAdjustment", FindSendClientAdjustment());
+    Push("SetChannelActor", FindSetChannelActor());
+    Push("SetChannelActorForDestroy", FindSetChannelActorForDestroy());
+    Push("CreateChannel", FindCreateChannel());
+    Push("ReplicateActor", FindReplicateActor());
+    Push("CloseActorChannel", FindCloseActorChannel());
+    Push("ClientHasInitializedLevelFor", FindClientHasInitializedLevelFor());
+    Push("StartBecomingDormant", FindStartBecomingDormant());
+    Push("FlushDormancy", FindFlushDormancy());
+    Push("SendDestructionInfo", FindSendDestructionInfo());
+    Push("UpdateIrisReplicationViews", FindUpdateIrisReplicationViews());
+    Push("PreSendUpdate", FindPreSendUpdate());
+    Push("IsNetRelevantForVft", (uint64_t)FindIsNetRelevantForVft(), true);
+
+    printf("\n--- abilities / inventory / build ---\n");
+    const uint64_t ConstructAbilitySpec = FindConstructAbilitySpec();
+    Push("GiveAbility", FindGiveAbility());
+    Push("ConstructAbilitySpec", ConstructAbilitySpec);
+    PushAlias("AbilitySpecDefaultConstructor", ConstructAbilitySpec);
+    Push("InternalTryActivateAbility", FindInternalTryActivateAbility());
+    Push("GiveAbilityAndActivateOnce", FindGiveAbilityAndActivateOnce());
+    Push("ClearAbility", FindClearAbility());
+    Push("ApplyCharacterCustomization", FindApplyCharacterCustomization());
+    Push("RemoveInventoryItem", FindRemoveInventoryItem());
+    Push("RemoveInventoryStateValue", FindRemoveInventoryStateValue());
+    Push("SetInventoryStateValue", FindSetInventoryStateValue());
+    Push("SetPickupItems", FindSetPickupItems());
+    Push("SetPickupTarget", FindSetPickupTarget());
+    Push("OnItemInstanceAddedVft", FindOnItemInstanceAddedVft(), true);
+    Push("CantBuild", FindCantBuild());
+    Push("ReplaceBuildingActor", FindReplaceBuildingActor());
+    Push("InitializeBuildingActor", FindInitializeBuildingActor());
+    Push("PostInitializeSpawnedBuildingActor", FindPostInitializeSpawnedBuildingActor());
+    Push("PayBuildableClassPlacementCost", FindPayBuildableClassPlacementCost());
+    Push("CanAffordToPlaceBuildableClass", FindCanAffordToPlaceBuildableClass());
+    Push("CanPlaceBuildableClassInStructuralGrid", FindCanPlaceBuildableClassInStructuralGrid());
+    Push("SpawnDecoVft", FindSpawnDecoVft(), true);
+    Push("ShouldAllowServerSpawnDecoVft", FindShouldAllowServerSpawnDecoVft(), true);
+    Push("SetIsDoorOpen", FindSetIsDoorOpen());
+    Push("SelectAndSetupMyBuildingLevel", FindSelectAndSetupMyBuildingLevel());
+    Push("StreamInMyBuilding", FindStreamInMyBuilding());
+
+    printf("\n--- misc hooks ---\n");
+    Push("CheckCheckpointHeartBeat", FindCheckCheckpointHeartBeat());
+    Push("ApplyHomebaseEffectsOnPlayerSetup", FindApplyHomebaseEffectsOnPlayerSetup());
+    Push("RetFalse", FindRetFalse());
+    Push("NetModePatch", FindNetModePatch());
+    Push("CrashSomething", FindCrashSomething());
+    Push("OverrideCosmeticLoadout", FindOverrideCosmeticLoadout());
+    Push("PedestalBeginPlay", FindPedestalBeginPlay());
+
+    printf("\n--- gamemode / zone / aircraft ---\n");
+    const uint64_t SetupSafeZonePhase = FindHandlePostSafeZonePhaseChanged();
+    const uint64_t GameSessionPatch = FindGameSessionPatch();
+    const uint64_t HandleZipline = FindOnRep_ZiplineState();
+    const uint64_t ControllerReset = FindReset();
+    Push("SetupSafeZonePhase", SetupSafeZonePhase);
+    PushAlias("HandlePostSafeZonePhaseChanged", SetupSafeZonePhase);
+    Push("SpawnLoot", FindSpawnLoot());
+    Push("FinishedTargetSpline", FindFinishedTargetSpline());
+    Push("PickTeam", FindPickTeam());
+    Push("KickPlayer", FindKickPlayer());
+    Push("EncryptionPatch", FindEncryptionPatch());
+    Push("GameSessionPatch", GameSessionPatch);
+    PushAlias("ChangeGameSessionId", GameSessionPatch);
+    Push("RemoveFromAlivePlayers", FindRemoveFromAlivePlayers());
+    Push("StartAircraftPhase", FindStartAircraftPhase());
+    Push("EnterAircraft", FindEnterAircraft());
+    Push("HandleZiplineStateChanged", HandleZipline);
+    PushAlias("OnRep_ZiplineState", HandleZipline);
+    Push("GetPlayerViewPoint", FindGetPlayerViewPoint());
+    Push("GetNamePool", FindGetNamePool());
+    Push("SpawnInitialSafeZone", FindSpawnInitialSafeZone());
+    Push("UpdateSafeZonesPhase", FindUpdateSafeZonesPhase());
+    Push("HandleMatchHasStarted", FindHandleMatchHasStarted());
+    Push("InitializeFlightPath", FindInitializeFlightPath());
+    Push("ControllerReset", ControllerReset);
+    PushAlias("Reset", ControllerReset);
+    Push("NotifyGameMemberAdded", FindNotifyGameMemberAdded());
+    Push("SetGamePhase", FindSetGamePhase());
+    Push("LoadPlayset", FindLoadPlayset());
+    Push("SetState", FindSetState());
+    Push("MinigameSettingsBuildingBeginPlay", FindMinigameSettingsBuilding__BeginPlay());
+    Push("PickSupplyDropLocation", FindPickSupplyDropLocation());
+    Push("InitializePlayerGameplayAbilities", FindInitializePlayerGameplayAbilities());
+    Push("QueueStatEvent", FindQueueStatEvent());
+    Push("FinishWorldInitialization", FindFinishWorldInitialization());
+    Push("ActivatePhase", FindActivatePhase());
+
+    printf("\n--- ufunctions / exec hooks ---\n");
 
     struct UFuncTarget
     {
@@ -385,6 +507,23 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
         { nullptr, "ForceEquipValidWeaponVft", { "FortPlayerControllerAthena", "FortPlayerController", nullptr }, { "ForceEquipValidWeapon", nullptr }, false },
         { nullptr, "SetLoadedAmmoVft", { "FortWorldItem", nullptr }, { "SetLoadedAmmo", nullptr }, false },
         { nullptr, "SetPhantomReserveAmmoVft", { "FortWorldItem", nullptr }, { "SetPhantomReserveAmmo", nullptr }, false },
+
+        // Extra common GS hooks
+        { "ServerReadyToStartMatch", nullptr, { "FortPlayerControllerAthena", "FortPlayerController", nullptr }, { "ServerReadyToStartMatch", nullptr }, false },
+        { "ServerSetClientHasFinishedLoading", nullptr, { "FortPlayerControllerAthena", "FortPlayerController", nullptr }, { "ServerSetClientHasFinishedLoading", nullptr }, false },
+        { "ClientReportDamagedResourceBuilding", nullptr, { "FortPlayerControllerAthena", "FortPlayerController", nullptr }, { "ClientReportDamagedResourceBuilding", nullptr }, false },
+        { "NetMulticast_Athena_BatchedDamageCues", nullptr, { "FortPawn", "FortPlayerPawn", nullptr }, { "NetMulticast_Athena_BatchedDamageCues", nullptr }, false },
+        { "ClientOnPawnDied", nullptr, { "FortPlayerControllerZone", "FortPlayerControllerAthena", nullptr }, { "ClientOnPawnDied", nullptr }, false },
+        { "OnRep_CurrentHealth", nullptr, { "FortPawn", "FortPlayerPawn", nullptr }, { "OnRep_CurrentHealth", nullptr }, false },
+        { "OnRep_bIsDBNO", nullptr, { "FortPawn", "FortPlayerPawn", nullptr }, { "OnRep_bIsDBNO", nullptr }, false },
+        { "ServerChangeName", nullptr, { "PlayerController", nullptr }, { "ServerChangeName", nullptr }, false },
+        { "ServerNotifyLoadedWorld", nullptr, { "PlayerController", nullptr }, { "ServerNotifyLoadedWorld", nullptr }, false },
+        { "ServerUpdateLevelVisibility", nullptr, { "PlayerController", nullptr }, { "ServerUpdateLevelVisibility", nullptr }, false },
+        { "ServerUpdateMultipleLevelsVisibility", nullptr, { "PlayerController", nullptr }, { "ServerUpdateMultipleLevelsVisibility", nullptr }, false },
+        { "ReceiveBeginPlay", nullptr, { "Actor", nullptr }, { "ReceiveBeginPlay", nullptr }, false },
+        { "ReceiveEndPlay", nullptr, { "Actor", nullptr }, { "ReceiveEndPlay", nullptr }, false },
+        { "K2_OnBecomeViewTarget", nullptr, { "Actor", nullptr }, { "K2_OnBecomeViewTarget", nullptr }, false },
+        { "GetLifetime", nullptr, { "Actor", nullptr }, { "GetLifetime", nullptr }, false },
     };
 
     for (auto& Target : UFuncTargets)
@@ -392,51 +531,64 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
         if (Target.ExecName)
         {
             uint64_t Addr = Target.UseImpl ? FindUFuncImpl(Target.Classes, Target.Functions) : FindUFuncExec(Target.Classes, Target.Functions);
-            Entries.push_back({ Target.ExecName, Addr, false });
+            Push(Target.ExecName, Addr, false);
         }
 
         if (Target.VftName)
-        {
-            Entries.push_back({ Target.VftName, FindUFuncVft(Target.Classes, Target.Functions), true });
-        }
+            Push(Target.VftName, FindUFuncVft(Target.Classes, Target.Functions), true);
     }
 
-    printf("nulls / rettrues...\n");
+    printf("\n--- nulls / rettrues ---\n");
     FindNullsAndRetTrues();
+
+    size_t NullCount = 0;
+    for (auto Addr : NullFuncs)
+    {
+        if (!Addr)
+            continue;
+        NullCount++;
+        printf("  NullFuncs[%zu]                            0x%llX\n", NullCount - 1, Rel(Addr));
+    }
+    if (!NullCount)
+        printf("  NullFuncs                                 NONE\n");
+
+    size_t RetTrueCount = 0;
+    for (auto Addr : RetTrueFuncs)
+    {
+        if (!Addr)
+            continue;
+        RetTrueCount++;
+        printf("  RetTrueFuncs[%zu]                         0x%llX\n", RetTrueCount - 1, Rel(Addr));
+    }
+    if (!RetTrueCount)
+        printf("  RetTrueFuncs                              NONE\n");
 
     const size_t TotalAttempted = Entries.size();
     std::vector<NamedAddr> FoundEntries;
     FoundEntries.reserve(Entries.size());
-
     for (auto& E : Entries)
     {
         if (E.Value)
-        {
             FoundEntries.push_back(E);
-            printf("  %-40s 0x%llX\n", E.Name, E.IsVft ? E.Value : Rel(E.Value));
-        }
-        else
-        {
-            printf("  %-40s miss\n", E.Name);
-        }
     }
-
     Entries = std::move(FoundEntries);
+
+    printf("--- found %zu/%zu gameserver offsets (+ %zu nulls, %zu rettrues) ---\n\n",
+        Entries.size(), TotalAttempted, NullCount, RetTrueCount);
 
     const std::string VersionStr = FormatVersion(FnVersion);
 
     std::ostringstream Out;
-    Out << "// Generated by Helix's OffsetFinder (Gameserver / Erbium signatures), Fortnite version: " << VersionStr << "\n";
-    Out << "// Engine: " << FormatVersion(EngineVersion) << " | Found " << Entries.size() << "/" << TotalAttempted << " named offsets\n";
-    Out << "// Supported range: 1.7.2 - 30.00 may have partial support aobve (from https://github.com/plooshi/Erbium)\n";
+    Out << "// Generated by Helix's OffsetFinder, Fortnite version: " << VersionStr << "\n";
+    Out << "// UE " << FormatVersion(EngineVersion) << "\n";
     Out << "#pragma once\n";
     Out << "#include <stdint.h>\n";
     Out << "#include <vector>\n";
     Out << "#include <intrin.h>\n\n";
-    Out << "class Helix\n";
+    Out << "class Offset\n";
     Out << "{\n";
     Out << "public:\n";
-    Out << "\tclass Offsets\n";
+    Out << "\tclass Finder\n";
     Out << "\t{\n";
     Out << "\tpublic:\n";
     Out << "\t\tstatic inline uint64_t ImageBase;\n";
@@ -506,6 +658,7 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
 
     printf("saved -> %s\n", Path.string().c_str());
     printf("(also on clipboard)\n");
+    fflush(stdout);
 
     std::wstring Msg = L"dumped gameserver offsets to:\n" + Path.wstring() + L"\n\n(copied to clipboard too)";
     MessageBoxW(nullptr, Msg.c_str(), L"OffsetFinder", MB_OK | MB_ICONINFORMATION);
@@ -516,36 +669,23 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
 std::string OffsetFinder::GenerateRedirectOffsets(const std::wstring& OutputPath)
 {
     printf("scanning redirect sigs...\n");
-
-    // need version for the filename
     SDK::Init();
     const std::string VersionStr = FormatVersion(VersionInfo.FortniteVersion);
 
     uint64_t EOSBase = 0;
     auto Found = RedirectFinders::FindAll(EOSBase);
 
-    for (auto& E : Found)
-    {
-        if (E.IsVft || E.IsMemberOffset)
-            printf("  %-40s 0x%llX\n", E.Name, E.Absolute);
-        else if (E.RelativeToEOS)
-            printf("  %-40s EOS+0x%llX\n", E.Name, E.Absolute - EOSBase);
-        else
-            printf("  %-40s 0x%llX\n", E.Name, Rel(E.Absolute));
-    }
-
     std::ostringstream Out;
-    Out << "// Generated by Helix's OffsetFinder (Redirect / Tellurium + Starfall), Fortnite version: " << VersionStr << "\n";
-    Out << "// Patterns from https://github.com/plooshi/Tellurium and https://github.com/plooshi/Starfall\n";
-    Out << "// Found " << Found.size() << " offsets\n";
+    Out << "// Generated by Helix's OffsetFinder, Fortnite version: " << VersionStr << "\n";
+    Out << "// UE " << FormatVersion(VersionInfo.EngineVersion) << "\n";
     Out << "#pragma once\n";
     Out << "#include <stdint.h>\n";
     Out << "#include <intrin.h>\n";
     Out << "#include <Windows.h>\n\n";
-    Out << "class Helix\n";
+    Out << "class Offset\n";
     Out << "{\n";
     Out << "public:\n";
-    Out << "\tclass Offsets\n";
+    Out << "\tclass Finder\n";
     Out << "\t{\n";
     Out << "\tpublic:\n";
     Out << "\t\tstatic inline uint64_t ImageBase;\n";
@@ -613,6 +753,7 @@ std::string OffsetFinder::GenerateRedirectOffsets(const std::wstring& OutputPath
 
     printf("saved -> %s\n", Path.string().c_str());
     printf("(also on clipboard)\n");
+    fflush(stdout);
 
     std::wstring Msg = L"dumped redirect offsets to:\n" + Path.wstring() + L"\n\n(copied to clipboard too)";
     MessageBoxW(nullptr, Msg.c_str(), L"OffsetFinder", MB_OK | MB_ICONINFORMATION);
