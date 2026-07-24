@@ -2670,9 +2670,14 @@ uint32 FindSpawnDecoVft()
 {
     auto sRef = Precision::FindStringRefSmart(L"AFortTrapTool::SpawnDeco World is tearing down.  Early-ing out.");
 
+    if (!sRef)
+        return 0;
+
     uint64 SpawnDeco = 0;
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -2707,10 +2712,15 @@ uint32 FindShouldAllowServerSpawnDecoVft()
 {
     auto sRef = Precision::FindStringRefSmart(L"Tried to place deco item %s %s that isn't actually in player inventory!");
 
+    if (!sRef)
+        return 0;
+
     uint64 ShouldAllowServerSpawnDecoPart = 0;
 
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x83 && *(Ptr + 2) == 0xEC)
@@ -2725,9 +2735,14 @@ uint32 FindShouldAllowServerSpawnDecoVft()
         }
     }
 
+    if (!ShouldAllowServerSpawnDecoPart)
+        return 0;
+
     uint64 ShouldAllowServerSpawnDeco = 0;
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(ShouldAllowServerSpawnDecoPart - i, 3))
+            break;
         auto Ptr = (uint8_t*)(ShouldAllowServerSpawnDecoPart - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -2790,8 +2805,13 @@ uint64_t FindPickSupplyDropLocation()
     if (!sRef)
         sRef = Precision::FindStringRefSmart(L"AFortAthenaMapInfo::PickSupplyDropLocation");
 
+    if (!sRef)
+        return 0;
+
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -2810,8 +2830,13 @@ uint64_t FindSetPickupTarget()
     if (!sRef)
         sRef = Precision::FindStringRefSmart(L"Attempted to spawn non-world item %s!");
 
+    if (!sRef)
+        return 0;
+
     for (int i = 0; i < 0x1500; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x40 && (*(Ptr + 1) == 0x53 || *(Ptr + 1) == 0x55))
@@ -2820,8 +2845,6 @@ uint64_t FindSetPickupTarget()
             return uint64_t(Ptr);
         else if (*Ptr == 0x4C && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xDC)
             return uint64_t(Ptr);
-        // else if (VersionInfo.FortniteVersion >= 15 && *Ptr == 0x48 && *(Ptr + 1) == 0x89 && *(Ptr + 2) == 0x5C)
-        //     return uint64_t(Ptr);
     }
 
     return 0;
@@ -2921,6 +2944,8 @@ uint64 FindFinishWorldInitialization()
         uint64_t ShouldPIESetDefaultPlaylistPart = 0;
         for (int i = 0; i < 2000; i++)
         {
+            if (!Precision::InTextRange(MeshSRef - i, 3))
+                break;
             auto Ptr = (uint8_t*)(MeshSRef - i);
 
             if (*Ptr == 0x48 && *(Ptr + 1) == 0x83 && *(Ptr + 2) == 0xEC)
@@ -2937,8 +2962,11 @@ uint64 FindFinishWorldInitialization()
 
         uint64_t ShouldPIESetDefaultPlaylist = 0;
 
+        if (ShouldPIESetDefaultPlaylistPart)
         for (int i = 0; i < 2000; i++)
         {
+            if (!Precision::InTextRange(ShouldPIESetDefaultPlaylistPart - i, 3))
+                break;
             auto Ptr = (uint8_t*)(ShouldPIESetDefaultPlaylistPart - i);
 
             if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -2972,6 +3000,8 @@ uint64 FindFinishWorldInitialization()
     uint64_t FinishWorldInitializationPart = 0;
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(Anchor - i, 3))
+            break;
         auto Ptr = (uint8_t*)(Anchor - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x83 && *(Ptr + 2) == 0xEC)
@@ -2986,8 +3016,13 @@ uint64 FindFinishWorldInitialization()
         }
     }
 
+    if (!FinishWorldInitializationPart)
+        return 0;
+
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(FinishWorldInitializationPart - i, 3))
+            break;
         auto Ptr = (uint8_t*)(FinishWorldInitializationPart - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -3017,6 +3052,8 @@ uint64 FindActivatePhase()
 
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x83 && *(Ptr + 2) == 0xEC)
@@ -3031,8 +3068,13 @@ uint64 FindActivatePhase()
         }
     }
 
+    if (!ActivatePhasePart)
+        return 0;
+
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(ActivatePhasePart - i, 3))
+            break;
         auto Ptr = (uint8_t*)(ActivatePhasePart - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)
@@ -3165,6 +3207,8 @@ uint64 FindSelectAndSetupMyBuildingLevel()
     uint64_t SelectAndSetupMyBuildingLevelPart = 0;
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(sRef - i, 3))
+            break;
         auto Ptr = (uint8_t*)(sRef - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x83 && *(Ptr + 2) == 0xEC)
@@ -3179,8 +3223,13 @@ uint64 FindSelectAndSetupMyBuildingLevel()
         }
     }
 
+    if (!SelectAndSetupMyBuildingLevelPart)
+        return 0;
+
     for (int i = 0; i < 2000; i++)
     {
+        if (!Precision::InTextRange(SelectAndSetupMyBuildingLevelPart - i, 3))
+            break;
         auto Ptr = (uint8_t*)(SelectAndSetupMyBuildingLevelPart - i);
 
         if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && *(Ptr + 2) == 0xC4)

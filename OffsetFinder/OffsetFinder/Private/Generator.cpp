@@ -20,6 +20,65 @@ namespace
         return Absolute - ImageBase;
     }
 
+    uint64_t SafeU64(uint64_t (*Fn)())
+    {
+        __try
+        {
+            return Fn();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0;
+        }
+    }
+
+    uint32_t SafeU32(uint32_t (*Fn)())
+    {
+        __try
+        {
+            return Fn();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0;
+        }
+    }
+
+    void SafeVoid(void (*Fn)())
+    {
+        __try
+        {
+            Fn();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
+
+    uint64_t SafeFindUFunc(const char* const* Classes, const char* const* Functions, bool UseImpl)
+    {
+        __try
+        {
+            return UseImpl ? FindUFuncImpl(Classes, Functions) : FindUFuncExec(Classes, Functions);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0;
+        }
+    }
+
+    uint32_t SafeFindUFuncVft(const char* const* Classes, const char* const* Functions)
+    {
+        __try
+        {
+            return FindUFuncVft(Classes, Functions);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0;
+        }
+    }
+
     uint64_t FindGWorld()
     {
         auto SRef = Precision::FindStringRefSmart(L"UWorld::CleanupWorld");
@@ -28,6 +87,8 @@ namespace
         {
             for (int i = 0; i < 0x400; i++)
             {
+                if (!Precision::InTextRange(SRef - i, 3))
+                    break;
                 auto Ptr = (uint8_t*)(SRef - i);
                 if (*Ptr == 0x48 && *(Ptr + 1) == 0x8B && (*(Ptr + 2) == 0x05 || *(Ptr + 2) == 0x0D || *(Ptr + 2) == 0x1D))
                 {
@@ -370,14 +431,15 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
     Push("SetGamePhase", FindSetGamePhase());
     Push("LoadPlayset", FindLoadPlayset());
     Push("SetState", FindSetState());
-    Push("MinigameSettingsBuildingBeginPlay", FindMinigameSettingsBuilding__BeginPlay());
-    Push("PickSupplyDropLocation", FindPickSupplyDropLocation());
-    Push("InitializePlayerGameplayAbilities", FindInitializePlayerGameplayAbilities());
-    Push("QueueStatEvent", FindQueueStatEvent());
-    Push("FinishWorldInitialization", FindFinishWorldInitialization());
-    Push("ActivatePhase", FindActivatePhase());
+    Push("MinigameSettingsBuildingBeginPlay", SafeU64(FindMinigameSettingsBuilding__BeginPlay));
+    Push("PickSupplyDropLocation", SafeU64(FindPickSupplyDropLocation));
+    Push("InitializePlayerGameplayAbilities", SafeU64(FindInitializePlayerGameplayAbilities));
+    Push("QueueStatEvent", SafeU64(FindQueueStatEvent));
+    Push("FinishWorldInitialization", SafeU64(FindFinishWorldInitialization));
+    Push("ActivatePhase", SafeU64(FindActivatePhase));
 
     printf("\n--- ufunctions / exec hooks ---\n");
+    fflush(stdout);
 
     struct UFuncTarget
     {
@@ -529,17 +591,15 @@ std::string OffsetFinder::GenerateGameserverOffsets(const std::wstring& OutputPa
     for (auto& Target : UFuncTargets)
     {
         if (Target.ExecName)
-        {
-            uint64_t Addr = Target.UseImpl ? FindUFuncImpl(Target.Classes, Target.Functions) : FindUFuncExec(Target.Classes, Target.Functions);
-            Push(Target.ExecName, Addr, false);
-        }
+            Push(Target.ExecName, SafeFindUFunc(Target.Classes, Target.Functions, Target.UseImpl), false);
 
         if (Target.VftName)
-            Push(Target.VftName, FindUFuncVft(Target.Classes, Target.Functions), true);
+            Push(Target.VftName, SafeFindUFuncVft(Target.Classes, Target.Functions), true);
     }
 
     printf("\n--- nulls / rettrues ---\n");
-    FindNullsAndRetTrues();
+    fflush(stdout);
+    SafeVoid(FindNullsAndRetTrues);
 
     size_t NullCount = 0;
     for (auto Addr : NullFuncs)
